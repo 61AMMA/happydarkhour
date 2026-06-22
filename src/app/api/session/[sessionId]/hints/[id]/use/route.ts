@@ -130,5 +130,5 @@ export async function POST(
     contentUrl: hint.contentUrl,
     pointsDeducted: hint.pointsCost,
     newScore: sessionTeam.score - hint.pointsCost,
-  })}
+  });
 }
