@@ -42,6 +42,21 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# Media files (PDF, JPG, MP3, MP4, ecc.) — non committare file pesanti
+# Database SQLite
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db.bak
+
+# Upload files
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# Media files (PDF, JPG, MP3, MP4, ecc.)
 /public/media/**/*
 !/public/media/**/.gitkeep
+
+# Script temporanei
+fix-*.mjs
+
+# File temporanei
+*.tmp
