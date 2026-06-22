@@ -52,8 +52,8 @@ prisma/*.db.bak
 !/public/uploads/.gitkeep
 
 # Media files (PDF, JPG, MP3, MP4, ecc.)
-/public/media/**/*
-!/public/media/**/.gitkeep
+# /public/media/**/*
+# !/public/media/**/.gitkeep
 
 # Script temporanei
 fix-*.mjs
