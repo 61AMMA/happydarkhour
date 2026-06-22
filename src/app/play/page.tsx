@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
 import {
@@ -355,7 +355,7 @@ function DynamicAnswerInput({
 // PlayPage
 // ---------------------------------------------------------------------------
 
-export default function PlayPage() {
+function PlayPageInner() {
   const searchParams = useSearchParams();
   const teamId = searchParams.get('team');
   const viewOnly = searchParams.get('viewOnly') === 'true';
@@ -1047,5 +1047,13 @@ export default function PlayPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PlayPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Caricamento…</div>}>
+      <PlayPageInner />
+    </Suspense>
   );
 }
