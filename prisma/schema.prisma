@@ -1,0 +1,285 @@
+// Happy Dark Hour - Schema Database MVP
+// Compatible with SQLite - No enums, no Json fields
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Utenti del sistema (operatori)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("operator") // operator, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relazioni
+  sessions  GameSession[]
+
+  @@map("users")
+}
+
+// Locali/pub dove si gioca
+model Venue {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relazioni
+  sessions GameSession[]
+
+  @@map("venues")
+}
+
+// Storia/escape game completa
+model Story {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  difficulty  String   @default("medium") // easy, medium, hard
+  durationMin Int      @default(60)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relazioni
+  steps     StoryStep[]
+  sessions  GameSession[]
+
+  @@map("stories")
+}
+
+// Singoli step della storia (progressione lineare)
+model StoryStep {
+  id          String   @id @default(cuid())
+  storyId     String
+  stepNumber  Int      // Ordine progressivo (1, 2, 3...)
+  title       String
+  description String
+  question    String
+  answerType  String   @default("text_single") // text_single, number_single, multi_text_ordered, multi_group_ordered_numbers, ordered_sequence_letters, list_text_with_empty_allowed, multi_number_unordered, structured_choice_with_reason
+  inputCount  Int?     // numero di campi input (per tipi multi-campo)
+  inputConfig String?  // JSON config per UI renderer (struttura dipende dall'answerType)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relazioni
+  story       Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  answers     StepAnswer[]
+  hints       StepHint[]
+  attempts    AnswerAttempt[]
+  media       StepMedia[]
+  firstClears StepFirstClear[]
+
+  @@unique([storyId, stepNumber])
+  @@map("story_steps")
+}
+
+// Risposte valide per ogni step
+model StepAnswer {
+  id                 String  @id @default(cuid())
+  stepId             String
+  answer             String  // Risposta esatta (case insensitive), varianti separate da |
+  points             Int     @default(10)
+  position           Int?    // posizione ordinale (per tipi ordinati)
+  groupLabel         String? // gruppo di appartenenza (es: "A", "B", "C", "D")
+  fieldLabel         String? // label del campo specifico (es: nome luogo per enigma 5)
+  emptyAllowed       Boolean @default(false) // se true, il campo vuoto è la risposta corretta
+  motivationKeywords String? // KAN-32: keyword pipe-separated per validazione motivazione libera (es: "palindrom|uguale al contrario|simmetric")
+
+  // Relazioni
+  step StoryStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("step_answers")
+}
+
+// Hint disponibili per ogni step (KAN-35 — nuovo formato)
+// type: TEXT | PHOTO | VIDEO | AUDIO (String, not enum — SQLite constraint)
+model StepHint {
+  id                            String   @id @default(cuid())
+  stepId                        String
+  order                         Int      @default(1)    // ordine sequenziale (1, 2, 3...)
+  type                          String   @default("TEXT") // TEXT, PHOTO, VIDEO, AUDIO
+  contentText                   String?  // contenuto testuale (se type=TEXT)
+  contentUrl                    String?  // URL media UUID-named (se type=PHOTO/VIDEO/AUDIO)
+  pointsCost                    Int      @default(50)   // punti sottratti al team
+  triggerMinutesAfterFirstClear Int      @default(5)    // minuti dopo prima clear per sblocco
+  createdAt                     DateTime @default(now())
+
+  // Relazioni
+  step   StoryStep      @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  usages TeamHintUsed[]
+
+  @@map("step_hints")
+}
+
+// Tracciamento hint usati per team (KAN-19)
+model TeamHintUsed {
+  id     String   @id @default(cuid())
+  teamId String
+  hintId String
+  usedAt DateTime @default(now())
+
+  team SessionTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  hint StepHint    @relation(fields: [hintId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, hintId])
+  @@map("team_hint_used")
+}
+
+// Tracciamento prima clear di ogni step per sessione (KAN-19 — trigger hint)
+model StepFirstClear {
+  id        String   @id @default(cuid())
+  sessionId String
+  stepId    String
+  clearedAt DateTime @default(now())
+
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  step    StoryStep   @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, stepId])
+  @@map("step_first_clear")
+}
+
+// Media allegati a step (KAN-29)
+// mediaType: IMAGE | AUDIO | VIDEO | PDF (String, not enum — SQLite constraint)
+model StepMedia {
+  id           String   @id @default(cuid())
+  stepId       String
+  url          String   // path relativo da /public/uploads/[uuid].[ext]
+  mediaType    String   // IMAGE, AUDIO, VIDEO, PDF
+  mimeType     String
+  originalName String
+  fileSize     Int
+  position     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  step StoryStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@map("step_media")
+}
+
+// Sessione di gioco specifica
+model GameSession {
+  id          String    @id @default(cuid())
+  venueId     String
+  storyId     String
+  operatorId  String
+  status      String    @default("created") // created, active, paused, completed
+  startedAt   DateTime?
+  completedAt DateTime?
+  maxDuration Int       @default(60) // minuti
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relazioni
+  venue           Venue            @relation(fields: [venueId], references: [id])
+  story           Story            @relation(fields: [storyId], references: [id])
+  operator        User             @relation(fields: [operatorId], references: [id])
+  teams           SessionTeam[]
+  events          SessionEvent[]
+  stepFirstClears StepFirstClear[]
+
+  @@map("game_sessions")
+}
+
+// Team/tavolo partecipante
+model SessionTeam {
+  id        String   @id @default(cuid())
+  sessionId String
+  teamName  String
+  members   Int      @default(2)
+  score     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relazioni
+  session      GameSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  progress     TeamProgress?
+  attempts     AnswerAttempt[]
+  events       SessionEvent[]
+  hintsUsed    TeamHintUsed[]
+
+  @@map("session_teams")
+}
+
+// Progresso attuale del team
+model TeamProgress {
+  id          String    @id @default(cuid())
+  teamId      String    @unique
+  currentStep Int       @default(1)
+  hintsUsed   Int       @default(0)
+  totalScore  Int       @default(0)
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relazioni
+  team SessionTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_progress")
+}
+
+// Tentativi di risposta del team
+model AnswerAttempt {
+  id        String   @id @default(cuid())
+  teamId    String
+  stepId    String
+  answer    String
+  isCorrect Boolean  @default(false)
+  points    Int      @default(0)
+  hintUsed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relazioni
+  team   SessionTeam      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  step   StoryStep        @relation(fields: [stepId], references: [id])
+  review ValidationReview?
+
+  @@map("answer_attempts")
+}
+
+// Revisione validazione (sistema ibrido)
+model ValidationReview {
+  id           String        @id @default(cuid())
+  attemptId    String        @unique
+  reviewerType String        // operator, auto, hybrid
+  isValid      Boolean       @default(false)
+  feedback     String?
+  reviewedAt   DateTime      @default(now())
+
+  // Relazioni
+  attempt AnswerAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@map("validation_reviews")
+}
+
+// Eventi/log della sessione
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  eventType String   // session_start, session_end, hint_used, answer_submitted, step_completed
+  teamId    String?
+  message   String
+  metadata  String?  // Dati aggiuntivi in formato testo semplice
+  createdAt DateTime @default(now())
+
+  // Relazioni
+  session GameSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  team    SessionTeam? @relation(fields: [teamId], references: [id])
+
+  @@map("session_events")
+}
