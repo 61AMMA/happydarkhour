@@ -1,4 +1,4 @@
-// Imports prod-seed.sql into the DB only if it's empty (no stories)
+// Imports prod-seed.json into the DB only if it's empty (no stories)
 import { PrismaClient } from '@prisma/client';
 import { readFileSync, existsSync } from 'fs';
 
@@ -11,35 +11,54 @@ async function main() {
     return;
   }
 
-  const sqlFile = './prisma/prod-seed.sql';
-  if (!existsSync(sqlFile)) {
-    console.log('[seed-if-empty] No prod-seed.sql found, skipping.');
+  const jsonFile = './prisma/prod-seed.json';
+  if (!existsSync(jsonFile)) {
+    console.log('[seed-if-empty] No prod-seed.json found, skipping.');
     return;
   }
 
-  console.log('[seed-if-empty] DB is empty, importing prod-seed.sql...');
-  const sql = readFileSync(sqlFile, 'utf8');
+  console.log('[seed-if-empty] DB is empty, importing prod-seed.json...');
+  const data = JSON.parse(readFileSync(jsonFile, 'utf8'));
 
-  // Split on semicolons but keep statements intact
-  const statements = sql
-    .split('\n')
-    .filter(l => !l.startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.match(/^(BEGIN TRANSACTION|COMMIT|PRAGMA)/i));
+  // Insert in dependency order using upsert to avoid duplicates
+  const tables = [
+    ['users', 'user'],
+    ['venues', 'venue'],
+    ['stories', 'story'],
+    ['story_steps', 'storyStep'],
+    ['step_answers', 'stepAnswer'],
+    ['step_hints', 'stepHint'],
+    ['step_media', 'stepMedia'],
+    ['game_sessions', 'gameSession'],
+    ['session_teams', 'sessionTeam'],
+    ['session_events', 'sessionEvent'],
+    ['team_progress', 'teamProgress'],
+    ['answer_attempts', 'answerAttempt'],
+    ['team_hint_used', 'teamHintUsed'],
+    ['step_first_clear', 'stepFirstClear'],
+    ['validation_reviews', 'validationReview'],
+  ];
 
-  let ok = 0, skip = 0;
-  for (const stmt of statements) {
-    try {
-      await prisma.$executeRawUnsafe(stmt);
-      ok++;
-    } catch (e) {
-      skip++;
+  for (const [jsonKey, model] of tables) {
+    const rows = data[jsonKey] || [];
+    if (rows.length === 0) continue;
+    let ok = 0;
+    for (const row of rows) {
+      try {
+        await prisma[model].upsert({
+          where: { id: row.id },
+          update: {},
+          create: row,
+        });
+        ok++;
+      } catch (e) {
+        console.warn(`[seed-if-empty] Skipped ${model} ${row.id}: ${e.message}`);
+      }
     }
+    console.log(`[seed-if-empty] ${model}: ${ok}/${rows.length} inserted`);
   }
 
-  console.log(`[seed-if-empty] Done. ${ok} statements OK, ${skip} skipped.`);
+  console.log('[seed-if-empty] Import complete.');
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
