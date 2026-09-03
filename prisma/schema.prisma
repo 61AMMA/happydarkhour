@@ -46,9 +46,15 @@ model Story {
   id          String   @id @default(cuid())
   title       String
   description String?
+  introduzione String? // testo di presentazione/pitch della storia (sezione Introduzione lato Creator)
   difficulty  String   @default("medium") // easy, medium, hard
   durationMin Int      @default(60)
   isActive    Boolean  @default(true)
+
+  // Semafori stato storia (String, non enum — vincolo SQLite). Valori: verde, giallo, rosso
+  realStatus    String @default("rosso") // stato "reale": verde=Pronta, giallo=In arrivo, rosso=In preparazione
+  digitalStatus String @default("rosso") // stato "digitale": verde=Pronta all'uso, giallo=Da validare, rosso=Da creare
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -1,0 +1,208 @@
+// Seed — Catalogo storie "SERATE HAPPY DARK HOUR"
+// Inserisce/aggiorna (upsert per titolo) le storie segnalate dal PM come Pronte,
+// Storie in arrivo e Storie in preparazione, con relativa introduzione e semafori.
+// realStatus: verde=Pronta, giallo=In arrivo, rosso=In preparazione (dal documento)
+// digitalStatus: di default "rosso" (Da creare) per tutte — nessuna e' ancora
+// stata compilata digitalmente in app; il Creator aggiorna lo stato da /creator.
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+interface SeedStory {
+  title: string;
+  introduzione: string;
+  realStatus: 'verde' | 'giallo' | 'rosso';
+  digitalStatus: 'verde' | 'giallo' | 'rosso';
+}
+
+const STORIES: SeedStory[] = [
+  {
+    title: "L’Eredità",
+    introduzione: "UNA GRANDE AZIENDA VINICOLA DI FAMIGLIA: UN PADRE PADRONE CHE TUTTI VOI, FIGLI E PARENTI, AVETE LASCIATO DA SOLO PRENDENDO LE VOSTRE STRADE COSI’ DIVERESE DALLA SUA. ORA LUI E’ MORTO E VI LASCIA IL SUO IMPERO! MA SARA’ COSI’ FACILE OTTENERLO? FRA VINO, LIBRI, E TANTO RANCORE NEI VOSTRI CONFRONTI, CERCHERETE DI OTTENERE L’EREDITA’!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Guardie e Ladri",
+    introduzione: "UNA RAPINA RIUSCITA PERFETTAMENTE! IL BOTTINO NELLE MANI DELLA MENTE DEL GRUPPO CHE PERO’, IL GIORNO DELLA SPARTIZIONE DEL DENARO VIENE ARRESTATA! DAL CARCERE ATTRAVERSO MESSAGGI CRIPTICI CERCHERA’ DI FAR CAPIRE AI SUOI COMPLICI DOVE E’ NASCOSTO IL BOTTINO. IN UN VIAGGIO ATTRAVERSO LE MARCHE SCOPRIRETE DOVE STA IL BOTTINO! TUTTO QUESTO E ALTRO ANCORA E’ GUARDIE E LADRI!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Ein Prosit! “Il Lavoro Perfetto”",
+    introduzione: "UN VOLANTINO ATTIRA LA VOSTRA ATTENZIONE: UN BIRRIFICIO SCONOSCIUTO OFFRE LA POSSIBILITA’ DI DIVENTARE MASTRI BIRRAI! PERCHE’ NON PROVARE? BEH, QUESTO LO SCOPRIRETE PRESTO! FRA BIRRE, RUNE E DIVINITA’ NORDICHE PREPARATI A VIVERE UNA EMOZIONATE AVVENTURA IN… EIN PROSIT, IL LAVORO PERFETTO!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "L’Oro alla Fine dell’Arcobaleno",
+    introduzione: "UN MILIONARIO AMANTE DELL’IRLANDA DECIDE DI METTERE IN PALIO  UN PENTOLONE PIENO D’ORO TIPICO DELLA LEGGENDA IRLANDESE CHE DICE CHE QUESTO PENTOLONE PROTETTO DA UN LEPRECAUNO SI TROVI ALLA FINE DELL’ARCOBALENO.  PROVERETE AD OTTENERLO? FRA MITI E LEGGENDE IRLANDESI PREPARATEVI A VIVERE UNA SPLENDIDA AVVENTURA CON… L’ORO ALLA FINE DELL’ARCOBALENO!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Una Vacanza Indimenticabile",
+    introduzione: "LA POSSIBILITA’ DI PARTIRE GRATUITAMENTE PER UNA CROCIERA INTORNO AL MONDO VI PORTA A PARTECIPARE A UNA SERATA RICCA DI SORPRESE. RIUSCIRETE A VINCERE QUESTO VIAGGIO DA SOGNO? O QUESTO LO SOGNO DIVENTERA’ PRESTO UN INCUBO? SALI A BORDO E VIVI QUESTA…. VACANZA INDIMENTICABILE!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "La Leggenda di Xoco",
+    introduzione: "UN EVENTO DEL PASSATO RIEMERGE. QUALCUNO VUOLE ARRIVARE DOVE LA GIUSTIZIA NON HA FATTO IL SUO DOVERE. E VOI SIETE QUA PER SALVARVI. MESSICO E CIOCCOLATA, FARANNO DA CONTORNO A QUESTA STORIA DAL TITOLO… LA LEGGENDA DI XOCO!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Quattro Ristoranti (e poi ne rimase uno solo…)",
+    introduzione: "HAI MAI VISTO QUATTRO RISTORANTI DI ALESSANDRO BORGHESE? BEH, QUESTA E’ LA VERSIONE DARK…. RISOLVI GLI ENIGMI SU LOCATION, MENU’, SERVIZIO E CONTO. PORTA ALLA VITTORIA IL TUO RISTORANTE ALTRIMENTI POTREBBERO ESSERE GUAI SERI! TUTTO QUESTO E’…. QUATTRO RISTORANTI ( e poi ne rimase uno solo…)",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Benvenuti all’Hotel Supramonte",
+    introduzione: "UN WEEKEND GRATUITO ALL’HOTEL SUPRAMONTE; UN NUOVO HOTEL DI LUSSO COSTRUITO DA POCO CHE APPENA ARRIVATI OFFRE UN APERITIVO DI BENVENUTO. SCOPRIRE CHE TUTTE LE PERSONE PRESENTI SI CONOSCONO FRA DI LORO E CHE NON SI VEDEVANO DA TANTI ANNI A CAUSA DI UN EVENTO CHE MACCHIA LE LORO ESISTENZE.  CON LA MUSICA ASSOLUTA PROTAGONISTA DELLA SERATA PREPARATEVI A VIVERE UNA VENDETTA SPIETATA. TUTTO QUESTO E TANTO ALTRO E’…  BENVENUTI ALL’ HOTEL SUPRAMONTE!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "La Bilancia di Osiride",
+    introduzione: "FRA “DEI” EGIZI E ANTICHI TALISMANI, AFFRONTA UN’AVVENTURA CHE PUO’ DARE UNA SVOLTA ALLA TUA VITA O METTERNE FINE! DI FRONTE AD ANUBI, OSIRIDE, THOT E MAAT SCOPRI SE LA TUA ANIMA E’ DEGNA DI QUESTO MONDO. E STAI ATTENTO I PRESENTI A QUESTA SERATA POTREBBERO CERCARE DI METTERTI IN CATTIVA LUCE! TUTTO QUESTO E TANTO ALTRO E’… LA BILANCIA DI OSIRIDE!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Ciak si Gira!",
+    introduzione: "SIETE STATI INVITAI AD UNA SERATA EVENTO DOVE C’E’ LA POSSIBILITA’ DI VINCERE UN FANTASTICO VIAGGIO PER ASSISTERE ALLA NOTTE DEGLI OSCAR! PER CHI AMA I FILM MA ANCHE PER CHI VUOLE FARE UN BEL VIAGGETTO NEGLI STATI UNITI E’ UNA OCCASIONE IRRIPETIBILE. PERCHE’ NON PROVARCI? LA RISPOSTA L’AVRETE SOLAMENTE PARTECIPANDO A… CIAK SI GIRA!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "(Anche se non è) (a) Carnevale, Ogni Scherzo Stasera Vale!",
+    introduzione: "IMMERSI IN UN MONDO DI MASCHERE, DOLCETTI E PROVERBI, PREPARATEVI A VIVERE UNA STORIA DAVVERO MOLTO PARTICOLARE. NIENTE CARRI O SFILATE, MA ATTENTI A COME VI COMPORTATE!! TUTTO QUESTO E ALTRO ANCORA IN…   ANCHE SE NON E’ CARNEVALE, OGNI SCHERZO STASERA VALE!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Atterraggio di Emergenza",
+    introduzione: "UNA NUOVA COMPAGNIA AEREA REGALA ALCUNI BIGLIETTI PER LONDRA; SARA’ LA SOLITA TROVATA PUBBLICITARIA? NO, I BIGLIETTI ARRIVANO DAVVERO! SIETE FELICI! “LONDRA STIAMO ARRIVANDO!” MA SARA’ COSI’? SIETE PRONTI A VIAGGIARE CON LA DARKNESS AIRLINES? TUTTO QUESTO E ALTRO ANCORA IN… ATTERRAGGIO DI EMERGENZA!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Io ti Salverò!",
+    introduzione: "UN VOSTRO CARO SCOMPARSO DA ORAMAI DUE ANNI; QUANDO NON AVETE PIU’ SPERANZA DI SCOPRIRE COSA PUO’ ESSERE SUCCESSO, ECCO CHE UN MESSAGGIO AUDIO CHE CERTIFICA CHE LA PERSONA IN QUESTIONE E’ ANCORA VIVA! MA QUESTA PERSONA E’ IN PERICOLO E AVETE DAVVERO POCO TEMPO PER TROVARLA. TUTTO QUESTO E ALTRO ANCORA IN… IO TI SALVERO’!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Il Destino di un Assassino",
+    introduzione: "UN DELITTO IRRISOLTO CHE HA COLPITO AL CUORE LA VOSTRA FAMIGLIA TANTI ANNI FA. IMPROVVISAMENTE QUALCUNO VUOLE DAR UNA RISPOSTA A TUTTO CIO’! RISPOSTA CHE VOI ASPETTATE DA TANTO, TROPPO TEMPO. FRA ARTICOLI DI GIORNALE E UNA INASPETTATA POSSIBILITA’ DI VENDETTA, VERRETE CATAPULTATI NEL 1986. TUTTO QUESTO E TANTO ALTRO IN… IL DESTINO DI UN ASSASSINO!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Caccia al Tesoro!",
+    introduzione: "UNA ORGANIZZAZIONE MALAVITOSA E’ PRONTA A SCEGLIERE FRA MOLTI ADEPTI CHI MERITA DI FAR PARTE DELLA “FAMIGLIA”.  COME? TROVANDO UN VECCHIO TESORO ACCUMULATO DALL’ORGANIZZAZIONE NEI SECOLI PRECEDENTI. UN VIAGGIO FRA SPAGNA E ITALIA ATTRAVERSO CODICI SEGRETI, LUOGHI MERAVIGLIOSI E REGOLE FERREE. TUTTO QUESTO E TANTO ALTRO E’… CACCIA AL TESORO!",
+    realStatus: "verde",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Happy Birthday!",
+    introduzione: "COSA PUO’ AVERE DI TANTO PERICOLOSO ANDARE AD UN COMPLEANNO DI BAMBINI? MENTRE QUESTI ULTIMI SI DIVERTIRANNO FRA GIOCHI, CORSE, TUFFI IN PISCINA E TANTO DIVERTIMENTO, PER GLI ADULTI L’UNICO GIOCO SARA’ SOPRAVVIVERE! TORNATE BAMBINI IN QUESTA STORIA DAL TITOLO… HAPPY BIRTHDAY!",
+    realStatus: "giallo",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Finché Morte non vi Separi!",
+    introduzione: "E’ PASSATO PRATICAMENTE UN ANNO DA QUANDO VI SIETE SPOSATI, E SIETE PRONTI A FESTEGGIARE IL VOSTRO PRIMO ANNIVERSARIO. MA IMPROVVISAMENTE LA VOSTRA DOLCE META’ SPARISCE! E’ STATA RAPITA. C’E’ DAVVERO POCO TEMPO PER SALVARLA. CHI E’ STATO? E PERCHE’ LO HA FATTO? NIENTE E’ COME SEMBRA IN… FINCHE’ MORTE NON VI SEPARI!",
+    realStatus: "giallo",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Binario Morto",
+    introduzione: "DOPO AVER FATTO UNA SEMPLICE COLAZIONE AL BAR DELLA STAZIONE VI RITROVERETE AD AFFRONTARE UNA VERA CORSA CONTRO IL TEMPO PER TROVARE L’ANTIDOTO AL VOSTRO MISTERIOSO AVVELENAMENTO. TROVA GLI INDIZI  FRA TABELLONI DELLE PARTENZE, BINARI E VAGONI E TANTO ALTRO ANCORA. TUTTO QUESTO E’ “BINARIO MORTO”",
+    realStatus: "giallo",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Stranger Things: Il Sottosopra!",
+    introduzione: "PRIGIONIERI NEL SOTTOSOPRA DELLA FAMOSA SERIE TV QUESTA VOLTA SIETE VOI! ARMATEVI DI CORAGGIO E PAZIENZA E TROVATE TUTTI GLI INDIZI PER POTER USCIRE DA QUESTO LUOGO. UN AVVENTURA CHE PUO’ AFFRONTARE CHI VUOLE RIVIVERE UNA SERIE TV CHE HA AMATO, MA ANCHE PER CHI NON L’HA MAI VISTA. TUTTO QUESTO E TANTO ALTRO E’ “STRANGER THINGS”: IL SOTTOSOPRA!",
+    realStatus: "giallo",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Un’Amicizia in Gioco",
+    introduzione: "UN GRATTA E VINCI MOLTO FORTUNATO PORTA A UNA VINCITA IMPORTANTE. CHI LO POSSIEDE PERO’ LO METTE IN PALIO! VOI SIETE QUA PER CERCARE DI OTTENERE QUESTA BELLA VINCITA. MA A QUALE PREZZO? UN LIBRO MISTERIOSO, VI AIUTERA’ NELLA RICERCA! TUTTO QUESTO E MOLTO ALTRO E’: UN’AMICIZIA IN GIOCO!",
+    realStatus: "giallo",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Il Paese del Sol Levante",
+    introduzione: "VIVI QUESTA MERAVIGLIOSA AVVENTURA CON PROTAGONISTA IL GIAPPONE; VI SIETE PRESENTATI IN TANTI AD UNA SERATA DOVE VI SI CHIEDE SOLAMENTE DI SCEGLIERE UN TATUAGGIO IN STILE GIAPPONESE DA FARE GRATUITAMENTE. MA COSA SI NASCONDE DIETRO QUESTO INVITO? FRA TATUAGGI, LEGGENDE, CERIMONIA DEL TE’ E TANTO ALTRO PREPARATEVI A VIVERE QUESTA AVVENTURA CON PROTAGONISTA… “IL PAESE DEL SOL LEVANTE” GIOCO!",
+    realStatus: "rosso",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Black Friday",
+    introduzione: "L’APERTURA DI UN CENTRO COMMERCIALE FA DA SFONDO A QUESTA NUOVA AVVENTURA. PER L’INAUGURAZIONE CI SONO OFFERTE E SCONTI DAVVERO INCREDIBILI! SIETE IN TANTI A PARTECIPARE. MA COSA SI NASCONDE DIETRO A QUESTE OFFERTE INCREDIBILI? LO SCOPRIRETE PRESTO! E SCOPRIRETE ANCHE CHE PUO’ ESSERE PERICOLOSO ANDARE DA ZARA O BERSHKA… TUTTO QUESTO E TANTO ALTRO E’ “BLACK FRIDAY”",
+    realStatus: "rosso",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Il Calendario dell’AVVelenamENTO",
+    introduzione: "CHE BELLA L’ATMOSFERA NATALIZIA! E IL CALENDARIO DELL’AVVENTO E’ SEMPRE SORPRENDENTE. QUESTO PIU’ CHE MAI. VIVI UN’AVVENTURA SPECIALE DOVE FRA I PROTAGONISTI CI SARA’ IL GIN! SCOPRI ATTRAVERSO GIN TONIC, BOTANICHE, E UNA CITTA’ MERAVIGLIOSA, COME AFFRONTARE UN NATALE “ALTERNATIVO”. TUTTO QUESTO E TANTO ALTRO E’: IL CALENDARIO DELL’AVVelenamENTO",
+    realStatus: "rosso",
+    digitalStatus: "rosso",
+  },
+  {
+    title: "Ancona Escape! (titolo da definire)",
+    introduzione: "UNA SERATA SPECIALE DOVE LA PROTAGONISTA E’ LA CITTA’ DI ANCONA. PER FESTEGGIARE “ANCONA CAPITALE ITALIANA DELLA CULTURA 2028” VIVRETE UN’AVVENTURA ATTRAVERSO LA STORIA, I LUOGHI E LE LEGGENDE DEL CAPOLUOGO MARCHIGIANO. TUTTO QUESTO E MOLTO ALTRO E’ “ANCONA ESCAPE”",
+    realStatus: "rosso",
+    digitalStatus: "rosso",
+  },
+];
+
+async function main() {
+  console.log('Inizio seed catalogo storie SERATE HAPPY DARK HOUR...');
+  let created = 0;
+  let updated = 0;
+
+  for (const s of STORIES) {
+    const existing = await prisma.story.findFirst({ where: { title: s.title } });
+    if (existing) {
+      await prisma.story.update({
+        where: { id: existing.id },
+        data: {
+          introduzione: s.introduzione,
+          realStatus: s.realStatus,
+          // Non sovrascrive digitalStatus se gia' stato modificato manualmente dal Creator
+        },
+      });
+      updated++;
+      console.log('Aggiornata:', s.title);
+    } else {
+      await prisma.story.create({
+        data: {
+          title: s.title,
+          introduzione: s.introduzione,
+          realStatus: s.realStatus,
+          digitalStatus: s.digitalStatus,
+          isActive: false, // non attiva finche' il Creator non la compila (step, domande, risposte)
+        },
+      });
+      created++;
+      console.log('Creata:', s.title);
+    }
+  }
+
+  console.log(`Seed completato: ${created} create, ${updated} aggiornate, ${STORIES.length} totali.`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

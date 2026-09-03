@@ -9,7 +9,8 @@
     "start": "next start -p 3000 -H 0.0.0.0",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
-    "seed:garduna": "tsx prisma/seed-garduna.ts"
+    "seed:garduna": "tsx prisma/seed-garduna.ts",
+    "seed:serate": "tsx prisma/seed-stories-serate.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

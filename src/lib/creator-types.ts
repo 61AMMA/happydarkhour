@@ -27,6 +27,33 @@ export const ANSWER_TYPE_LABELS: Record<AnswerType, string> = {
 };
 
 // ----------------------------------------------------------------
+// Semafori stato storia (sezione Pagina Storie) — String, non enum
+// ----------------------------------------------------------------
+export type SemaforoStatus = 'verde' | 'giallo' | 'rosso';
+
+export const SEMAFORO_STATUS_VALUES: SemaforoStatus[] = ['verde', 'giallo', 'rosso'];
+
+// Semaforo "reale": stato di preparazione della storia dal vivo (contenuti/copione)
+export const REAL_STATUS_LABELS: Record<SemaforoStatus, string> = {
+  verde: 'Pronta',
+  giallo: 'In arrivo',
+  rosso: 'In preparazione',
+};
+
+// Semaforo "digitale": stato di implementazione della storia nell'app
+export const DIGITAL_STATUS_LABELS: Record<SemaforoStatus, string> = {
+  verde: 'Pronta all\'uso',
+  giallo: 'Da validare',
+  rosso: 'Da creare',
+};
+
+export const SEMAFORO_COLORS: Record<SemaforoStatus, string> = {
+  verde: '#3fbf5f',
+  giallo: '#d9a900',
+  rosso: '#cc4444',
+};
+
+// ----------------------------------------------------------------
 // Tipi di hint
 // ----------------------------------------------------------------
 export type HintType = 'TEXT' | 'PHOTO' | 'VIDEO' | 'AUDIO';
@@ -98,10 +125,13 @@ export interface StoryWithSteps {
   id: string;
   title: string;
   description: string | null;
+  introduzione: string | null;
   difficulty: string;
   durationMin: number;
   isActive: boolean;
   isInUse: boolean;
+  realStatus: SemaforoStatus;
+  digitalStatus: SemaforoStatus;
   createdAt: string;
   updatedAt: string;
   steps: StepSummary[];

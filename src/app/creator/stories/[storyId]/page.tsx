@@ -4,7 +4,8 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { StoryWithSteps } from '@/lib/creator-types';
+import type { StoryWithSteps, SemaforoStatus } from '@/lib/creator-types';
+import SemaforoSelector from '@/components/creator/SemaforoSelector';
 
 export default function StoryDetailPage({
   params,
@@ -21,12 +22,21 @@ export default function StoryDetailPage({
   const [titleDraft, setTitleDraft] = useState('');
   const [savingTitle, setSavingTitle] = useState(false);
   const [addingStep, setAddingStep] = useState(false);
+  const [editingIntro, setEditingIntro] = useState(false);
+  const [introDraft, setIntroDraft] = useState('');
+  const [savingIntro, setSavingIntro] = useState(false);
 
   useEffect(() => {
     fetch(`/api/stories/${storyId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) { setError(data.error); } else { setStory(data); setTitleDraft(data.title); }
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setStory(data);
+          setTitleDraft(data.title);
+          setIntroDraft(data.introduzione || '');
+        }
         setLoading(false);
       })
       .catch(() => { setError('Errore nel caricare la storia'); setLoading(false); });
@@ -46,6 +56,39 @@ export default function StoryDetailPage({
       setEditingTitle(false);
     }
     setSavingTitle(false);
+  };
+
+  const handleSaveIntro = async () => {
+    if (!story) return;
+    setSavingIntro(true);
+    const res = await fetch(`/api/stories/${storyId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ introduzione: introDraft }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setStory((prev) => (prev ? { ...prev, introduzione: updated.introduzione } : prev));
+      setEditingIntro(false);
+    } else {
+      alert("Errore nel salvare l'introduzione");
+    }
+    setSavingIntro(false);
+  };
+
+  const handleStatusChange = async (field: 'realStatus' | 'digitalStatus', value: SemaforoStatus) => {
+    if (!story) return;
+    const previous = story;
+    setStory((prev) => (prev ? { ...prev, [field]: value } : prev));
+    const res = await fetch(`/api/stories/${storyId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+    if (!res.ok) {
+      setStory(previous);
+      alert('Errore nel salvare lo stato');
+    }
   };
 
   const handleAddStep = async () => {
@@ -174,9 +217,72 @@ export default function StoryDetailPage({
           )}
         </div>
 
-        <p className="text-sm opacity-50">
+        <p className="text-sm opacity-50 mb-4">
           {story.difficulty} · {story.durationMin} min · {story.steps.length} step
         </p>
+
+        {/* Semafori stato storia */}
+        <div className="flex items-center gap-2 flex-wrap mb-5">
+          <SemaforoSelector
+            axis="reale"
+            value={story.realStatus}
+            onChange={(v) => handleStatusChange('realStatus', v)}
+          />
+          <SemaforoSelector
+            axis="digitale"
+            value={story.digitalStatus}
+            onChange={(v) => handleStatusChange('digitalStatus', v)}
+          />
+        </div>
+
+        {/* Introduzione */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-semibold opacity-70">Introduzione</h3>
+            {!editingIntro && (
+              <button
+                onClick={() => { setIntroDraft(story.introduzione || ''); setEditingIntro(true); }}
+                className="text-xs opacity-40 hover:opacity-80 transition-opacity"
+              >
+                ✎
+              </button>
+            )}
+          </div>
+          {editingIntro ? (
+            <div className="space-y-2">
+              <textarea
+                autoFocus
+                value={introDraft}
+                onChange={(e) => setIntroDraft(e.target.value)}
+                rows={5}
+                placeholder="Testo di presentazione/pitch della storia..."
+                className="w-full rounded px-3 py-2 text-sm outline-none focus:ring-1 resize-y"
+                style={{ backgroundColor: '#1a1a1a', border: '1px solid #CC0000', color: '#F5F5F5' }}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveIntro}
+                  disabled={savingIntro}
+                  className="text-sm px-3 py-1 rounded disabled:opacity-50"
+                  style={{ backgroundColor: '#CC0000', color: '#F5F5F5' }}
+                >
+                  {savingIntro ? '...' : 'Salva'}
+                </button>
+                <button
+                  onClick={() => setEditingIntro(false)}
+                  className="text-sm px-3 py-1 rounded opacity-60 hover:opacity-100"
+                  style={{ border: '1px solid #333' }}
+                >
+                  Annulla
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm opacity-70 whitespace-pre-wrap">
+              {story.introduzione || <span className="opacity-40 italic">Nessuna introduzione ancora</span>}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Lista step */}

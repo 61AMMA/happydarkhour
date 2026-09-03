@@ -38,22 +38,37 @@ export async function PUT(
     return NextResponse.json({ error: 'Body JSON non valido' }, { status: 400 });
   }
 
-  const { title, description, difficulty, durationMin, isActive } = body as {
+  const { title, description, introduzione, difficulty, durationMin, isActive, realStatus, digitalStatus } = body as {
     title?: string;
     description?: string;
+    introduzione?: string;
     difficulty?: string;
     durationMin?: number;
     isActive?: boolean;
+    realStatus?: string;
+    digitalStatus?: string;
   };
+
+  // KAN — semafori stato storia: solo verde, giallo, rosso (String, non enum — vincolo SQLite)
+  const validSemaforo = ['verde', 'giallo', 'rosso'];
+  if (realStatus !== undefined && !validSemaforo.includes(realStatus)) {
+    return NextResponse.json({ error: 'realStatus non valido' }, { status: 400 });
+  }
+  if (digitalStatus !== undefined && !validSemaforo.includes(digitalStatus)) {
+    return NextResponse.json({ error: 'digitalStatus non valido' }, { status: 400 });
+  }
 
   const updated = await prisma.story.update({
     where: { id: storyId },
     data: {
       ...(title !== undefined && { title }),
       ...(description !== undefined && { description }),
+      ...(introduzione !== undefined && { introduzione }),
       ...(difficulty !== undefined && { difficulty }),
       ...(durationMin !== undefined && { durationMin }),
       ...(isActive !== undefined && { isActive }),
+      ...(realStatus !== undefined && { realStatus }),
+      ...(digitalStatus !== undefined && { digitalStatus }),
     },
   });
 

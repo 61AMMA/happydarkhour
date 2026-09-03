@@ -3,14 +3,19 @@
 // KAN-21 — Dashboard Creator: lista storie
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SemaforoSelector from '@/components/creator/SemaforoSelector';
+import { SemaforoStatus } from '@/lib/creator-types';
 
 interface Story {
   id: string;
   title: string;
   description: string | null;
+  introduzione: string | null;
   difficulty: string;
   durationMin: number;
   isActive: boolean;
+  realStatus: SemaforoStatus;
+  digitalStatus: SemaforoStatus;
   steps: { id: string }[];
 }
 
@@ -32,6 +37,29 @@ export default function CreatorDashboard() {
         setLoading(false);
       });
   }, []);
+
+  const handleStatusChange = async (
+    storyId: string,
+    field: 'realStatus' | 'digitalStatus',
+    value: SemaforoStatus
+  ) => {
+    const previous = stories;
+    setStories((prev) => prev.map((s) => (s.id === storyId ? { ...s, [field]: value } : s)));
+    try {
+      const res = await fetch(`/api/stories/${storyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) {
+        setStories(previous);
+        alert('Errore nel salvare lo stato');
+      }
+    } catch {
+      setStories(previous);
+      alert('Errore di connessione');
+    }
+  };
 
   const handleDelete = async (storyId: string, title: string) => {
     if (!confirm(`Eliminare la storia "${title}"? L'operazione non è reversibile.`)) return;
@@ -121,9 +149,21 @@ export default function CreatorDashboard() {
                 {story.description && (
                   <p className="text-sm opacity-60 mb-2 truncate">{story.description}</p>
                 )}
-                <p className="text-xs opacity-40">
+                <p className="text-xs opacity-40 mb-3">
                   {story.steps.length} step · {story.durationMin} min · difficoltà: {story.difficulty}
                 </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SemaforoSelector
+                    axis="reale"
+                    value={story.realStatus}
+                    onChange={(v) => handleStatusChange(story.id, 'realStatus', v)}
+                  />
+                  <SemaforoSelector
+                    axis="digitale"
+                    value={story.digitalStatus}
+                    onChange={(v) => handleStatusChange(story.id, 'digitalStatus', v)}
+                  />
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Link

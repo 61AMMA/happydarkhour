@@ -63,6 +63,19 @@ src/components/creator/
   HintCard.tsx           ← card singolo hint espandibile
 ```
 
+## Semafori stato storia e Introduzione (Pagina Storie)
+
+Aggiunti al modello `Story`: `introduzione` (testo libero, pitch/presentazione della storia),
+`realStatus` e `digitalStatus` (String, valori `verde` | `giallo` | `rosso`, default `rosso`).
+
+- **Semaforo reale**: verde = Pronta, giallo = In arrivo, rosso = In preparazione.
+- **Semaforo digitale**: verde = Pronta all'uso, giallo = Da validare, rosso = Da creare.
+
+Modificabili dal Creator direttamente dalla lista `/creator` e dal dettaglio storia
+(`/creator/stories/[storyId]`) tramite `SemaforoSelector` (`src/components/creator/SemaforoSelector.tsx`).
+Salvati via `PUT /api/stories/[storyId]`. Seed iniziale: `npm run seed:serate`
+(`prisma/seed-stories-serate.ts`, idempotente per titolo).
+
 ## Vincoli rispettati
 
 - Prisma 5.22.0, Next.js 16.2.3, Tailwind 4.x — NON aggiornati
