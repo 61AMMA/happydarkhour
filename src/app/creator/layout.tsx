@@ -22,6 +22,12 @@ export default function CreatorLayout({ children }: { children: ReactNode }) {
             >
               Storie
             </Link>
+            <Link
+              href="/creator/venues"
+              className="opacity-80 hover:opacity-100 transition-opacity"
+            >
+              Clienti
+            </Link>
           </nav>
         </div>
         <Link

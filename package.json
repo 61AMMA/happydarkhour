@@ -10,6 +10,7 @@
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
     "seed:garduna": "tsx prisma/seed-garduna.ts",
+    "seed:clienti": "tsx prisma/seed-venues-clienti.ts",
     "seed:serate": "tsx prisma/seed-stories-serate.ts"
   },
   "dependencies": {

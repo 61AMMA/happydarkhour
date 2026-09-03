@@ -29,16 +29,64 @@ model User {
 model Venue {
   id          String   @id @default(cuid())
   name        String
-  address     String?
+  address     String?  // indirizzo libero legacy (retrocompatibilita')
   description String?
   isActive    Boolean  @default(true)
+
+  // Contatti locale (KAN-clienti)
+  phone        String? // numero locale
+  street       String? // via
+  streetNumber String? // numero civico
+  postalCode   String? // CAP
+  city         String? // localita'
+  province     String? // provincia (sigla, es. AN)
+  openingHours String? // giorni e orari di apertura, righe separate da pipe "|"
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relazioni
   sessions GameSession[]
+  contacts VenueContact[]
+  events   VenueEvent[]
 
   @@map("venues")
+}
+
+// Contatti personale del locale (KAN-clienti) — referente/i del locale
+model VenueContact {
+  id        String   @id @default(cuid())
+  venueId   String
+  firstName String
+  lastName  String
+  phone     String?
+  role      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relazioni
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@map("venue_contacts")
+}
+
+// Storico serate del locale (KAN-clienti) — registro manuale compilato dal Creator
+// Distinto da GameSession (motore di gioco live): qui il Creator annota a mano
+// quali storie sono state giocate presso il locale, con data e note libere.
+model VenueEvent {
+  id        String   @id @default(cuid())
+  venueId   String
+  storyId   String
+  eventDate DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relazioni
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [storyId], references: [id])
+
+  @@map("venue_events")
 }
 
 // Storia/escape game completa
@@ -61,6 +109,7 @@ model Story {
   // Relazioni
   steps     StoryStep[]
   sessions  GameSession[]
+  venueEvents VenueEvent[]
 
   @@map("stories")
 }

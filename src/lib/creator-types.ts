@@ -189,3 +189,66 @@ export interface StepDetail {
     position: number;
   }>;
 }
+
+// ----------------------------------------------------------------
+// KAN-clienti — Sezione Clienti (locali/venue)
+// ----------------------------------------------------------------
+export interface VenueContactEntry {
+  id?: string;              // presente se già salvato in DB
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  role: string | null;
+}
+
+export interface VenueEventEntry {
+  id?: string;               // presente se già salvato in DB
+  storyId: string;
+  eventDate: string;          // ISO date string
+  notes: string | null;
+}
+
+// Risposta API GET /api/venues — riepilogo per la lista Clienti
+export interface VenueSummary {
+  id: string;
+  name: string;
+  isActive: boolean;
+  city: string | null;
+  province: string | null;
+  phone: string | null;
+  _count?: { contacts: number; events: number };
+}
+
+// Risposta API GET /api/venues/[venueId] — dettaglio con contatti
+export interface VenueDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  phone: string | null;
+  street: string | null;
+  streetNumber: string | null;
+  postalCode: string | null;
+  city: string | null;
+  province: string | null;
+  openingHours: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contacts: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    role: string | null;
+  }>;
+}
+
+// Risposta API GET /api/venues/[venueId]/events — storico serate
+export interface VenueEventDetail {
+  id: string;
+  venueId: string;
+  storyId: string;
+  eventDate: string;
+  notes: string | null;
+  story: { id: string; title: string };
+}
