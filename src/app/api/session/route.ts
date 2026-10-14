@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { venueId, storyId, operatorId, maxDuration } = body;
+    const { venueId, storyId, operatorId, maxDuration, gameMode } = body;
 
     if (!venueId || !storyId || !operatorId) {
       return NextResponse.json(
@@ -95,18 +95,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // KAN-ASYNC: modalità di gioco - SINCRONA (default, invariata) o ASINCRONA (tavoli con avvio indipendente)
+    const normalizedGameMode = gameMode === 'ASINCRONA' ? 'ASINCRONA' : 'SINCRONA';
+
     await prisma.gameSession.updateMany({
       where: { status: 'active' },
       data: { status: 'completed', completedAt: new Date() },
     });
 
-    const session = await prisma.gameSession.create({
+    // cast: campo gameMode presente nel DB (vedi schema.prisma) ma non ancora rigenerato nei tipi Prisma in questo ambiente
+    const session = await (prisma.gameSession as any).create({
       data: {
         venueId,
         storyId,
         operatorId,
         maxDuration: maxDuration || 60,
         status: 'created',
+        gameMode: normalizedGameMode,
       },
       include: { venue: true, story: true, operator: true },
     });

@@ -232,6 +232,7 @@ model GameSession {
   storyId     String
   operatorId  String
   status      String    @default("created") // created, active, paused, completed
+  gameMode    String    @default("SINCRONA") // KAN-ASYNC: SINCRONA | ASINCRONA
   startedAt   DateTime?
   completedAt DateTime?
   maxDuration Int       @default(60) // minuti
@@ -257,6 +258,7 @@ model SessionTeam {
   members   Int      @default(2)
   score     Int      @default(0)
   isActive  Boolean  @default(true)
+  startedAt DateTime? // KAN-ASYNC: istante di avvio individuale del tavolo (ASINCRONA); in SINCRONA impostato per tutti all'avvio sessione
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

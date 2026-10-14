@@ -6,6 +6,7 @@ export interface TeamData {
   members: number;
   score: number;
   isActive: boolean;
+  startedAt?: string | null; // KAN-ASYNC: istante di avvio individuale del tavolo (ASINCRONA)
 }
 
 export interface ProgressData {
@@ -33,6 +34,7 @@ export interface StepData {
 export interface GameSession {
   id: string;
   status: string;
+  gameMode?: string; // KAN-ASYNC: 'SINCRONA' | 'ASINCRONA'
   startedAt?: string;
   maxDuration?: number;
   story: {

@@ -56,6 +56,10 @@ export async function GET(
     const totalSteps = team.session.story.steps.length;
     const isCompleted = team.progress?.completedAt ? true : false;
 
+    // cast: campi gameMode/startedAt presenti nel DB ma non ancora rigenerati nei tipi Prisma in questo ambiente
+    const teamAny = team as any;
+    const sessionAny = team.session as any;
+
     return NextResponse.json({
       team: {
         id: team.id,
@@ -63,6 +67,7 @@ export async function GET(
         members: team.members,
         score: team.score,
         isActive: team.isActive,
+        startedAt: teamAny.startedAt, // KAN-ASYNC: istante di avvio individuale del tavolo (null se non ancora avviato in ASINCRONA)
       },
       progress: {
         currentStep: team.progress?.currentStep || 1,
@@ -75,6 +80,7 @@ export async function GET(
       session: {
         id: team.session.id,
         status: team.session.status,
+        gameMode: sessionAny.gameMode, // KAN-ASYNC: SINCRONA | ASINCRONA
         startedAt: team.session.startedAt,
         maxDuration: team.session.maxDuration,
         story: {

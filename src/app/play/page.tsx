@@ -35,6 +35,67 @@ const STRUCTURED_TYPES = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// KAN-ASYNC: GostTimeline — classifica "fantasma" per la modalità Asincrona.
+// Per ogni avversario mostra una riga con un segmento per fase della storia;
+// il segmento si accende quando IL TUO tempo trascorso (dal tuo avvio) supera
+// la soglia cumulativa di tempo che quell'avversario impiegò per completarla.
+// ---------------------------------------------------------------------------
+
+function GostTimeline({
+  totalSteps,
+  opponents,
+  viewerStartedAt,
+  nowTick,
+}: {
+  totalSteps: number;
+  opponents: Array<{ teamId: string; teamName: string; phaseDurationsSeconds: Array<number | null> }>;
+  viewerStartedAt: string;
+  nowTick: number;
+}) {
+  const elapsedSec = Math.max(0, Math.floor((nowTick - new Date(viewerStartedAt).getTime()) / 1000));
+
+  if (opponents.length === 0) {
+    return (
+      <p className="text-sm text-gray-400 text-center">
+        Nessun altro tavolo ha ancora iniziato con te o prima di te.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {opponents.map((opp) => {
+        // Soglie cumulative: il segmento i si accende quando il tuo tempo supera la soglia dell'avversario per la fase i
+        let cumulative = 0;
+        const thresholds: Array<number | null> = opp.phaseDurationsSeconds.map((d) => {
+          if (d === null) return null;
+          cumulative += d;
+          return cumulative;
+        });
+        return (
+          <div key={opp.teamId}>
+            <p className="text-sm font-medium mb-1">{opp.teamName}</p>
+            <div className="flex gap-1">
+              {Array.from({ length: totalSteps }).map((_, i) => {
+                const threshold = thresholds[i];
+                const reached = threshold !== null && threshold !== undefined && elapsedSec >= threshold;
+                return (
+                  <div
+                    key={i}
+                    className={`flex-1 h-3 rounded ${reached ? 'bg-green-500' : 'bg-gray-700'}`}
+                    title={`Fase ${i + 1}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Hint types (KAN-19)
 // ---------------------------------------------------------------------------
 
@@ -142,13 +203,26 @@ function DynamicAnswerInput({
   }, [nums, answerType, onReady]);
 
   // ---- structured_choice_with_reason ----
-  const [scelta, setScelta] = useState('');
-  const [frase, setFrase] = useState('');
-  const [motivazione, setMotivazione] = useState('');
+  // blocks: array of {scelta, frase, motivazione} — one per groupLabel
+  const scwrGroups = (() => {
+    if (answerType !== 'structured_choice_with_reason' || !step.answers) return ['0'];
+    const groups = new Set<string>();
+    for (const a of step.answers) groups.add((a as any).groupLabel ?? '0');
+    if (groups.size === 0) groups.add('0');
+    return Array.from(groups).sort();
+  })();
+  const [scwrValues, setScwrValues] = useState<Record<string, { scelta: string; frase: string; motivazione: string }>>(
+    () => Object.fromEntries(scwrGroups.map((g) => [g, { scelta: '', frase: '', motivazione: '' }]))
+  );
+  const updateScwr = useCallback((group: string, field: 'scelta' | 'frase' | 'motivazione', val: string) => {
+    setScwrValues((prev) => ({ ...prev, [group]: { ...prev[group], [field]: val } }));
+  }, []);
   useEffect(() => {
-    if (answerType === 'structured_choice_with_reason')
-      onReady(JSON.stringify({ scelta, frase, motivazione }));
-  }, [scelta, frase, motivazione, answerType, onReady]);
+    if (answerType === 'structured_choice_with_reason') {
+      const arr = scwrGroups.map((g) => scwrValues[g] ?? { scelta: '', frase: '', motivazione: '' });
+      onReady(arr.length === 1 ? JSON.stringify(arr[0]) : JSON.stringify(arr));
+    }
+  }, [scwrValues, answerType, onReady, scwrGroups.join(',')]);
 
   // ---- Render ----
 
@@ -272,7 +346,7 @@ function DynamicAnswerInput({
                       value={luoghiValues[item.label] ?? ''}
                       onChange={(e) => updateLuogo(item.label, e.target.value)}
                       disabled={disabled}
-                      placeholder={item.emptyAllowed ? '(lascia vuoto)' : '…'}
+                      placeholder="…"
                       className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                     />
                   </td>
@@ -308,41 +382,56 @@ function DynamicAnswerInput({
   }
 
   if (answerType === 'structured_choice_with_reason') {
+    const motivazioneEnabled = inputConfig?.motivazioneEnabled !== false;
+    const scelteLabel = inputConfig?.scelteLabel || 'La tua scelta:';
+    const fraseLabel = inputConfig?.fraseLabel || 'Frase in cui compare:';
     return (
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">La tua scelta:</label>
-          <input
-            type="text"
-            value={scelta}
-            onChange={(e) => setScelta(e.target.value)}
-            disabled={disabled}
-            placeholder="Inserisci la parola o elemento scelto..."
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Frase in cui compare:</label>
-          <input
-            type="text"
-            value={frase}
-            onChange={(e) => setFrase(e.target.value)}
-            disabled={disabled}
-            placeholder="Indica la frase dove hai trovato la scelta..."
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Motivazione:</label>
-          <textarea
-            value={motivazione}
-            onChange={(e) => setMotivazione(e.target.value)}
-            disabled={disabled}
-            rows={3}
-            placeholder="Spiega perché hai fatto questa scelta..."
-            className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
-          />
-        </div>
+      <div className="space-y-5">
+        {scwrGroups.map((group, idx) => {
+          const vals = scwrValues[group] ?? { scelta: '', frase: '', motivazione: '' };
+          return (
+            <div key={group} className={scwrGroups.length > 1 ? 'border border-gray-700 rounded-lg p-3 space-y-3' : 'space-y-4'}>
+              {scwrGroups.length > 1 && (
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Blocco {idx + 1}</p>
+              )}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{scelteLabel}</label>
+                <input
+                  type="text"
+                  value={vals.scelta}
+                  onChange={(e) => updateScwr(group, 'scelta', e.target.value)}
+                  disabled={disabled}
+                  placeholder="…"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">{fraseLabel}</label>
+                <input
+                  type="text"
+                  value={vals.frase}
+                  onChange={(e) => updateScwr(group, 'frase', e.target.value)}
+                  disabled={disabled}
+                  placeholder="…"
+                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                />
+              </div>
+              {motivazioneEnabled && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Motivazione:</label>
+                  <textarea
+                    value={vals.motivazione}
+                    onChange={(e) => updateScwr(group, 'motivazione', e.target.value)}
+                    disabled={disabled}
+                    rows={3}
+                    placeholder="Spiega il ragionamento…"
+                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -374,6 +463,11 @@ function PlayPageInner() {
   const [ranking, setRanking] = useState<any>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+
+  // KAN-ASYNC: avvio individuale del tavolo + classifica fantasma (GOST)
+  const [startingTeam, setStartingTeam] = useState(false);
+  const [showGost, setShowGost] = useState(false);
+  const [gostData, setGostData] = useState<any>(null);
 
   // KAN-19: hint state
   const [hints, setHints] = useState<HintState[]>([]);
@@ -427,12 +521,20 @@ function PlayPageInner() {
     loadData();
   }, [teamId, viewOnly]);
 
-  // Countdown timer for the session
+  // Countdown timer: in SINCRONA è quello di sessione, in ASINCRONA è quello del singolo tavolo (KAN-ASYNC)
   useEffect(() => {
     if (!session) return;
+    const isAsync = session.gameMode === 'ASINCRONA';
+    const teamStartedAt = selectedTeam?.startedAt;
+    if (isAsync && !teamStartedAt) {
+      // Il tavolo non è ancora partito: nessun countdown finché non viene avviato
+      setTimeRemaining(null);
+      setIsExpired(false);
+      return;
+    }
     const updateTimer = () => {
       const now = new Date();
-      const startedAt = new Date(session.startedAt);
+      const startedAt = new Date(isAsync ? teamStartedAt : session.startedAt);
       const maxDurationMs = session.maxDuration * 60 * 1000;
       const elapsedMs = now.getTime() - startedAt.getTime();
       const remainingMs = Math.max(0, maxDurationMs - elapsedMs);
@@ -442,7 +544,54 @@ function PlayPageInner() {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [session, selectedTeam?.startedAt]);
+
+  // KAN-ASYNC: se il tavolo non è ancora partito, controlla periodicamente se è stato avviato
+  // dall'operatore dalla Console (l'avvio può arrivare da entrambe le parti)
+  useEffect(() => {
+    if (!selectedTeam?.id || session?.gameMode !== 'ASINCRONA' || selectedTeam?.startedAt) return;
+    const id = setInterval(async () => {
+      const state = await getTeamState(selectedTeam.id);
+      if (state.team?.startedAt) {
+        setSelectedTeam(state.team);
+        setTeamState(state);
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [selectedTeam?.id, selectedTeam?.startedAt, session?.gameMode]);
+
+  // KAN-ASYNC: il giocatore avvia autonomamente il cronometro del proprio tavolo
+  const handleSelfStartTeam = async () => {
+    if (!selectedTeam?.id || startingTeam) return;
+    setStartingTeam(true);
+    try {
+      const res = await fetch(`/api/team/${selectedTeam.id}/start`, { method: 'POST' });
+      if (res.ok) {
+        const updatedTeam = await res.json();
+        setSelectedTeam((prev: any) => ({ ...prev, startedAt: updatedTeam.startedAt }));
+      }
+    } catch (error) {
+      console.error('Errore avvio tavolo:', error);
+    } finally {
+      setStartingTeam(false);
+    }
+  };
+
+  // KAN-ASYNC: carica la classifica fantasma (GOST)
+  const loadGost = useCallback(async () => {
+    if (!session?.id || !selectedTeam?.id) return;
+    try {
+      const res = await fetch(`/api/session/${session.id}/gost?teamId=${selectedTeam.id}`);
+      if (res.ok) setGostData(await res.json());
+    } catch { /* network error, ignore */ }
+  }, [session?.id, selectedTeam?.id]);
+
+  useEffect(() => {
+    if (!showGost) return;
+    loadGost();
+    const id = setInterval(loadGost, 10000);
+    return () => clearInterval(id);
+  }, [showGost, loadGost]);
 
   // Tick each second (for locked hint countdown display)
   useEffect(() => {
@@ -716,8 +865,51 @@ function PlayPageInner() {
           </div>
         )}
 
+        {/* KAN-ASYNC: Classifica in tempo reale (stile fantasma/GOST) */}
+        {selectedTeam && session.gameMode === 'ASINCRONA' && selectedTeam.startedAt && (
+          <div className="bg-gray-800 rounded-lg p-4 mb-4">
+            <button
+              onClick={() => setShowGost((v) => !v)}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg font-medium"
+            >
+              {showGost ? 'Nascondi Classifica' : 'Visualizza Classifica in tempo reale'}
+            </button>
+            {showGost && gostData && (
+              <div className="mt-4">
+                <GostTimeline
+                  totalSteps={gostData.totalSteps}
+                  opponents={gostData.opponents}
+                  viewerStartedAt={selectedTeam.startedAt}
+                  nowTick={nowTick}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* KAN-ASYNC: tavolo non ancora avviato in modalità Asincrona */}
+        {selectedTeam && session.gameMode === 'ASINCRONA' && !selectedTeam.startedAt && (
+          <div className="bg-gray-800 rounded-lg p-6 mb-4 text-center">
+            <h2 className="text-xl font-bold mb-2">Pronti a cominciare?</h2>
+            <p className="text-gray-300 mb-6">
+              {viewOnly
+                ? 'In attesa che il tavolo avvii la partita.'
+                : "Il tuo tavolo gioca in modalità Asincrona: il cronometro parte solo quando lo avvii tu, oppure quando lo avvia l'operatore."}
+            </p>
+            {!viewOnly && (
+              <button
+                onClick={handleSelfStartTeam}
+                disabled={startingTeam}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-50 px-6 py-3 rounded-lg font-bold text-lg"
+              >
+                {startingTeam ? 'Avvio in corso...' : 'Inizia la Partita'}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Game completed / expired */}
-        {teamState?.progress?.isCompleted || isExpired ? (
+        {(session.gameMode !== 'ASINCRONA' || selectedTeam?.startedAt) && (teamState?.progress?.isCompleted || isExpired) ? (
           <div className={`${teamState?.progress?.isCompleted ? 'bg-green-800' : 'bg-red-800'} rounded-lg p-6 mb-4 text-center`}>
             <h2 className="text-2xl font-bold mb-4">
               {teamState?.progress?.isCompleted ? 'Complimenti!' : 'Tempo scaduto!'}
@@ -786,7 +978,7 @@ function PlayPageInner() {
             </p>
           </div>
 
-        ) : teamState?.currentStep ? (
+        ) : (session.gameMode !== 'ASINCRONA' || selectedTeam?.startedAt) && teamState?.currentStep ? (
           <>
             {/* Current step */}
             <div className="bg-gray-800 rounded-lg p-6 mb-4">
@@ -853,6 +1045,7 @@ function PlayPageInner() {
                   <label className="block text-sm font-medium mb-2">La tua risposta:</label>
                   {STRUCTURED_TYPES.has(teamState.currentStep.answerType ?? '') ? (
                     <DynamicAnswerInput
+                      key={teamState.currentStep.id}
                       step={teamState.currentStep}
                       onReady={handleStructuredReady}
                       disabled={submitting || viewOnly}

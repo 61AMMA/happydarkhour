@@ -28,7 +28,8 @@ export default function OperatorPage() {
     venueId: '',
     storyId: '',
     operatorId: '',
-    maxDuration: 60
+    maxDuration: 60,
+    gameMode: 'SINCRONA' // KAN-ASYNC: 'SINCRONA' | 'ASINCRONA'
   });
   const [newTeamForm, setNewTeamForm] = useState({
     teamName: '',
@@ -229,6 +230,31 @@ export default function OperatorPage() {
     }
   };
 
+  // KAN-ASYNC: avvia il cronometro di un singolo tavolo (modalità ASINCRONA)
+  const handleStartTeam = async (teamId: string) => {
+    if (!session?.id) return;
+    try {
+      await fetch(`/api/team/${teamId}/start`, { method: 'POST' });
+      const teamsResponse = await fetch(`/api/teams?sessionId=${session.id}`);
+      setTeams(await teamsResponse.json());
+    } catch (err) {
+      console.error('Errore avvio tavolo:', err);
+    }
+  };
+
+  // KAN-ASYNC: avvia insieme, nello stesso istante, tutti i tavoli ancora in attesa
+  // (così partono alla pari e si vedono a vicenda nella Classifica in tempo reale)
+  const handleStartAllWaitingTeams = async () => {
+    if (!session?.id) return;
+    try {
+      await fetch(`/api/session/${session.id}/start-waiting-teams`, { method: 'POST' });
+      const teamsResponse = await fetch(`/api/teams?sessionId=${session.id}`);
+      setTeams(await teamsResponse.json());
+    } catch (err) {
+      console.error('Errore avvio multiplo tavoli:', err);
+    }
+  };
+
   // Forza conclusione sessione (chiamata dopo conferma)
   const handleForceEndSession = async () => {
     if (!session?.id) return;
@@ -319,7 +345,7 @@ export default function OperatorPage() {
               <div className="space-y-4">
                 <div className="bg-gray-700 rounded-lg p-4">
                   <h3 className="font-bold mb-2">Sessione Corrente</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <div>
                       <span className="text-gray-400">Stato:</span>
                       <span className="ml-2 px-2 py-1 rounded text-xs bg-yellow-600">created</span>
@@ -336,6 +362,12 @@ export default function OperatorPage() {
                       <span className="text-gray-400">Team:</span>
                       <span className="ml-2">{teams.length}</span>
                     </div>
+                    <div>
+                      <span className="text-gray-400">Modalità:</span>
+                      <span className={`ml-2 px-2 py-1 rounded text-xs ${session.gameMode === 'ASINCRONA' ? 'bg-purple-600' : 'bg-blue-600'}`}>
+                        {session.gameMode === 'ASINCRONA' ? 'Asincrona' : 'Sincrona'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -344,7 +376,7 @@ export default function OperatorPage() {
                     onClick={handleStartSession}
                     className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg"
                   >
-                    Avvia Sessione
+                    {session.gameMode === 'ASINCRONA' ? 'Apri la Sala' : 'Avvia Sessione'}
                   </button>
                   {/* KAN-23: conferma prima di reset */}
                   <button
@@ -404,7 +436,17 @@ export default function OperatorPage() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="font-bold">Team Creati ({teams.length})</h3>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-bold">Team Creati ({teams.length})</h3>
+                  {session.gameMode === 'ASINCRONA' && teams.some((t: any) => !t.startedAt) && (
+                    <button
+                      onClick={handleStartAllWaitingTeams}
+                      className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded text-sm"
+                    >
+                      Avvia tutti i tavoli in attesa
+                    </button>
+                  )}
+                </div>
                 {teams.map((team: any) => (
                   <div key={team.id} className="bg-gray-700 rounded-lg p-4">
                     <div className="space-y-4">
@@ -412,6 +454,28 @@ export default function OperatorPage() {
                         <h4 className="font-bold text-lg">{team.teamName}</h4>
                         <p className="text-sm text-gray-400">Partecipanti: {team.members}</p>
                       </div>
+
+                      {/* KAN-ASYNC: avvio individuale del tavolo in modalità Asincrona */}
+                      {session.gameMode === 'ASINCRONA' && (
+                        <div className="bg-gray-800 rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <span className="text-sm font-medium">Cronometro tavolo</span>
+                            <p className="text-xs text-gray-400">
+                              {team.startedAt
+                                ? `Avviato alle ${new Date(team.startedAt).toLocaleTimeString()}`
+                                : 'Non ancora avviato — il tavolo può partire quando è pronto'}
+                            </p>
+                          </div>
+                          {!team.startedAt && (
+                            <button
+                              onClick={() => handleStartTeam(team.id)}
+                              className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
+                            >
+                              Avvia Tavolo
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       {/* Accesso Dispositivi */}
                       <div className="bg-gray-800 rounded-lg p-3">
@@ -498,6 +562,10 @@ export default function OperatorPage() {
                     <p>{session.maxDuration} minuti</p>
                   </div>
                   <div>
+                    <span className="text-gray-400">Modalità:</span>
+                    <p>{session.gameMode === 'ASINCRONA' ? 'Asincrona' : 'Sincrona'}</p>
+                  </div>
+                  <div>
                     <span className="text-gray-400">Iniziata:</span>
                     <p>{session.startedAt ? new Date(session.startedAt).toLocaleString() : 'N/D'}</p>
                   </div>
@@ -542,7 +610,17 @@ export default function OperatorPage() {
 
               {/* Team Partecipanti */}
               <div className="bg-gray-800 rounded-lg p-6 lg:col-span-2">
-                <h2 className="text-xl font-bold mb-4 text-green-400">Team Partecipanti</h2>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  <h2 className="text-xl font-bold text-green-400">Team Partecipanti</h2>
+                  {session.gameMode === 'ASINCRONA' && teams.some((t: any) => !t.startedAt) && (
+                    <button
+                      onClick={handleStartAllWaitingTeams}
+                      className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded text-sm"
+                    >
+                      Avvia tutti i tavoli in attesa
+                    </button>
+                  )}
+                </div>
                 {teams && teams.length > 0 ? (
                   <div className="space-y-3">
                     {teams.map((team: any) => (
@@ -556,11 +634,43 @@ export default function OperatorPage() {
                             <div className="text-sm text-gray-400 space-y-1">
                               <p>Partecipanti: {team.members}</p>
                               <p>Stato: {team.isActive ? 'Attivo' : 'Non attivo'}</p>
+                              {session.gameMode === 'ASINCRONA' && (
+                                <p>
+                                  Cronometro: {team.startedAt
+                                    ? `avviato alle ${new Date(team.startedAt).toLocaleTimeString()}`
+                                    : 'non ancora avviato'}
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right ml-4">
+                          <div className="text-right ml-4 flex flex-col items-end gap-2">
                             <div className="text-2xl font-bold text-blue-400">
                               {team.score} pts
+                            </div>
+                            {session.gameMode === 'ASINCRONA' && !team.startedAt && (
+                              <button
+                                onClick={() => handleStartTeam(team.id)}
+                                className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
+                              >
+                                Avvia Tavolo
+                              </button>
+                            )}
+                            {/* KAN-ASYNC: accesso rapido a link/QR anche a sessione già avviata */}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => showQRCode(team.id, 'player')}
+                                className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs"
+                                title="Copia link o mostra QR del Link Giocatore"
+                              >
+                                QR Giocatore
+                              </button>
+                              <button
+                                onClick={() => showQRCode(team.id, 'viewOnly')}
+                                className="bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs"
+                                title="Copia link o mostra QR del Link View-Only"
+                              >
+                                QR View-Only
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -569,6 +679,35 @@ export default function OperatorPage() {
                   </div>
                 ) : (
                   <p className="text-gray-400">Nessun team partecipante</p>
+                )}
+
+                {/* KAN-ASYNC: in Asincrona si possono aggiungere tavoli anche a sessione già avviata */}
+                {session.gameMode === 'ASINCRONA' && (
+                  <form onSubmit={handleCreateTeam} className="mt-4 flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nome nuovo tavolo"
+                      value={newTeamForm.teamName}
+                      onChange={(e) => setNewTeamForm({ ...newTeamForm, teamName: e.target.value })}
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                      required
+                    />
+                    <input
+                      type="number"
+                      placeholder="Partecipanti"
+                      value={newTeamForm.members}
+                      onChange={(e) => setNewTeamForm({ ...newTeamForm, members: parseInt(e.target.value) })}
+                      className="w-full sm:w-32 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm"
+                      min="1"
+                      max="8"
+                    />
+                    <button
+                      type="submit"
+                      className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm whitespace-nowrap"
+                    >
+                      Aggiungi Tavolo
+                    </button>
+                  </form>
                 )}
               </div>
             </div>
@@ -707,6 +846,35 @@ export default function OperatorPage() {
                   min="30"
                   max="180"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Modalità di gioco</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 flex-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="gameMode"
+                      checked={newSessionForm.gameMode === 'SINCRONA'}
+                      onChange={() => setNewSessionForm({ ...newSessionForm, gameMode: 'SINCRONA' })}
+                    />
+                    <span>
+                      <span className="block font-medium">Sincrona</span>
+                      <span className="block text-xs text-gray-400">Tutti i tavoli iniziano e finiscono insieme</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 flex-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="gameMode"
+                      checked={newSessionForm.gameMode === 'ASINCRONA'}
+                      onChange={() => setNewSessionForm({ ...newSessionForm, gameMode: 'ASINCRONA' })}
+                    />
+                    <span>
+                      <span className="block font-medium">Asincrona</span>
+                      <span className="block text-xs text-gray-400">Ogni tavolo parte quando vuole, classifica stile fantasma</span>
+                    </span>
+                  </label>
+                </div>
               </div>
               <button
                 type="submit"

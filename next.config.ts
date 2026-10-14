@@ -1,21 +1,28 @@
 import type { NextConfig } from "next";
 
+// Durante `npm run dev`, NODE_ENV = 'development'
+// Durante `npx next build`, NODE_ENV = 'production'
+// output: 'standalone' e outputFileTracingRoot sono necessari solo per la build installer
+// In dev mode causano un conflitto con Turbopack che rompe la risoluzione di tailwindcss
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
-  // Permette connessioni da rete locale in sviluppo
-  // Risolve problemi di accesso da smartphone via IP
-  // NOTA: Questo richiede avvio con: npm run dev -- -H 0.0.0.0
-  
-  // Configurazione per Turbopack (Next.js 16)
-  turbopack: {
-    // Configurazione vuota per compatibilità
-  },
-  
+  // Standalone solo in produzione/build - non in dev
+  ...(isProduction && {
+    output: 'standalone',
+    // Forza la root del progetto per il file tracing standalone.
+    // Senza questo, Next.js segue package-lock.json in C:\Users\Utente\
+    // e crea una struttura di cartelle sbagliata
+    outputFileTracingRoot: process.cwd(),
+  }),
+
+  // Turbopack per next dev (build.ps1 usa --webpack esplicitamente)
+  turbopack: {},
+
   // Permette accessi cross-origin da IP locale per HMR
-  // Risolve warning "Blocked cross-origin request to Next.js dev resource"
-  allowedDevOrigins: ['192.168.1.232'],
-  
+  allowedDevOrigins: ['192.168.1.232', '100.78.179.31'],
+
   // Disabilita HMR problematico su rete locale
-  // Previne loading infinito quando si accede via IP
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
